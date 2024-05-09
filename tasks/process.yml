@@ -66,7 +66,7 @@
       register: kubectl_output
 
     - ansible.builtin.debug:
-        msg: "{{ kubectl_output.stdout }}"
+        msg: "{{ kubectl_output.stdout_lines }}"
 
 - name: kubectl apply
   ansible.builtin.command:
@@ -75,4 +75,4 @@
   register: kubectl_output
 
 - ansible.builtin.debug:
-    msg: "{{ kubectl_output.stdout }}"
+    msg: "{{ kubectl_output.stdout_lines }}"
