@@ -1,0 +1,78 @@
+---
+
+- name: kmt source setup
+  check_mode: false
+  block:
+
+    # Requirements.txt is kept as a 'file', rather than a template, to allow the
+    # requirements.txt file to be updated by an external dependency management
+    # system (e.g. dependabot or renovate)
+    - name: Copy requirements.txt
+      ansible.builtin.copy:
+        src: requirements.txt
+        dest: "{{ temp_dir.path }}/requirements.txt"
+
+    - name: Override version
+      ansible.builtin.copy:
+        content: |
+          kmt=={{ kmt_version_override }}
+        dest: "{{ temp_dir.path }}/requirements.txt"
+      when: "kmt_version_override|default('') != ''"
+
+    - name: Setup venv
+      ansible.builtin.shell:
+        cmd: >-
+          python3 -m venv env && . ./env/bin/activate && pip install -r requirements.txt
+        chdir: "{{ temp_dir.path }}"
+
+    - name: Source directory
+      ansible.builtin.file:
+        path: "{{ temp_dir.path }}/source"
+        state: directory
+
+    - name: Copy kmt sources
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ temp_dir.path }}/source/"
+      loop: "{{ kmt_sources }}"
+
+    - ansible.builtin.command:
+        cmd: >-
+          find "{{ temp_dir.path }}"
+      register: find
+
+    - ansible.builtin.debug:
+        msg: "{{ find }}"
+
+    - name: Generate manifest
+      ansible.builtin.shell:
+        cmd: >-
+          . ./env/bin/activate && kmt "./source/{{ kmt_path }}"
+        chdir: "{{ temp_dir.path }}"
+      register: manifest_data
+      environment: "{{ kmt_environment }}"
+
+    - name: Save kmt output
+      ansible.builtin.copy:
+        content: "{{ manifest_data.stdout }}"
+        dest: "{{ temp_dir.path }}/manifest.yaml"
+
+    - name: kubectl diff
+      ansible.builtin.command:
+        cmd: >-
+          kubectl diff -f "{{ temp_dir.path }}/manifest.yaml" {{ kmt_kubectl_args }}
+      check_mode: false
+      failed_when: false
+      register: kubectl_output
+
+    - ansible.builtin.debug:
+        msg: "{{ kubectl_output.stdout }}"
+
+- name: kubectl apply
+  ansible.builtin.command:
+    cmd: >-
+      kubectl apply -f "{{ temp_dir.path }}/manifest.yaml" {{ kmt_kubectl_args }}
+  register: kubectl_output
+
+- ansible.builtin.debug:
+    msg: "{{ kubectl_output.stdout }}"

@@ -1,0 +1,11 @@
+---
+
+kmt_version_override: ''
+
+kmt_environment: {}
+
+kmt_path: "{{ undef(hint='kmt_path must be defined. This is the relative path to the kmt manifest directory')}}"
+
+kmt_kubectl_args: ''
+
+kmt_sources: "{{ undef(hint='kmt_sources must be defined. This is a list of dirs/files to copy to the target')}}"

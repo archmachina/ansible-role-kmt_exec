@@ -1,0 +1,20 @@
+---
+
+# Create the working area
+- name: Create temporary area
+  ansible.builtin.tempfile:
+    state: directory
+  register: temp_dir
+  check_mode: false
+
+- name: Process k8s manifests
+  block:
+    - name: process k8s manifests
+      ansible.builtin.include_tasks:
+        file: process.yml
+  always:
+    - name: Remove temporary directory
+      ansible.builtin.file:
+        path: "{{ temp_dir.path }}"
+        state: absent
+      check_mode: false
